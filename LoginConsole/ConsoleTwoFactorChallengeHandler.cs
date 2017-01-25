@@ -13,7 +13,15 @@ namespace LoginConsole
         {
             Console.Write("Two Factor Code: ");
             var code = Console.ReadLine();
-            return Task.FromResult(new TwoFactorChallengeResult(code));
+
+            if (code != "resend")
+            {
+                return Task.FromResult(new TwoFactorChallengeResult(code));
+            }
+            else
+            {
+                return Task.FromResult(TwoFactorChallengeResult.RequestResendCode);
+            }
         }
     }
 }

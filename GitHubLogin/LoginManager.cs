@@ -55,25 +55,31 @@ namespace GitHubLogin
                 Fingerprint = fingerprint,
             };
 
-            ApplicationAuthorization auth;
+            ApplicationAuthorization auth = null;
 
-            try
+            do
             {
-                auth = await client.Authorization.Create(
-                    clientId,
-                    clientSecret,
-                    newAuth).ConfigureAwait(false);
-            }
-            catch (TwoFactorAuthorizationException e)
-            {
-                var challengeResult = await twoFactorChallengeHandler.HandleTwoFactorException(client, e);
+                try
+                {
+                    auth = await client.Authorization.Create(
+                        clientId,
+                        clientSecret,
+                        newAuth).ConfigureAwait(false);
+                }
+                catch (TwoFactorAuthorizationException e)
+                {
+                    var challengeResult = await twoFactorChallengeHandler.HandleTwoFactorException(client, e);
 
-                auth = await client.Authorization.Create(
-                    clientId,
-                    clientSecret,
-                    newAuth,
-                    challengeResult.AuthenticationCode).ConfigureAwait(false);
-            }
+                    if (!challengeResult.ResendCodeRequested)
+                    {
+                        auth = await client.Authorization.Create(
+                            clientId,
+                            clientSecret,
+                            newAuth,
+                            challengeResult.AuthenticationCode).ConfigureAwait(false);
+                    }
+                }
+            } while (auth == null);
 
             await loginCache.SaveLogin(userName, auth.Token, hostAddress).ConfigureAwait(false);
             return await client.User.Current().ConfigureAwait(false);
