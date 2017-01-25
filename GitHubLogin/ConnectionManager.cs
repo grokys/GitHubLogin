@@ -41,7 +41,7 @@ namespace GitHubLogin
         {
             try
             {
-                var connections = (await cache.Load()).ToList();
+                var connections = (await cache.Load().ConfigureAwait(false)).ToList();
                 inner.AddRange(connections);
 
                 if (ConnectionsAdded != null)
@@ -72,7 +72,7 @@ namespace GitHubLogin
                 ConnectionsAdded(this, new ConnectionEventArgs(connection));
             }
 
-            await cache.Save(inner);
+            await cache.Save(inner).ConfigureAwait(false);
             return connection;
         }
 
@@ -90,7 +90,7 @@ namespace GitHubLogin
                     ConnectionsRemoved(this, new ConnectionEventArgs(connection));
                 }
 
-                await cache.Save(inner);
+                await cache.Save(inner).ConfigureAwait(false);
             }
 
             return connection != null;

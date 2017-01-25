@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using System.Threading.Tasks;
 using Akavache;
+using Octokit;
 
 namespace GitHubLogin
 {
@@ -14,6 +16,12 @@ namespace GitHubLogin
             Guard.ArgumentNotNull(cache, nameof(cache));
 
             this.cache = cache;
+        }
+
+        public async Task<Tuple<string, string>> GetLogin(HostAddress hostAddress)
+        {
+            var login = await cache.GetLoginAsync(hostAddress.CredentialCacheKeyHost);
+            return Tuple.Create(login.UserName, login.Password);
         }
 
         public Task SaveLogin(string userName, string password, HostAddress hostAddress)
