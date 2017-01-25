@@ -11,5 +11,13 @@ namespace GitHubLogin
                 throw new ArgumentNullException(name);
             }
         }
+
+        public static void ArgumentNotNullOrWhiteSpace(string value, string name)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new ArgumentException($"{name} may not be null or empty.");
+            }
+        }
     }
 }
