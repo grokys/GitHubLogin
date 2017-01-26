@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -24,6 +25,23 @@ namespace LoginConsole
             connectionManager = new ConnectionManager(connectionCache);
             connectionManager.Initialize().Wait();
 
+            connectionManager.ConnectionsAdded += (s, e) =>
+            {
+                foreach (var c in e.Connections)
+                {
+                    var index = IndexOf(e.Connections, c);
+                    Console.WriteLine($"Added {index}. {c.HostAddress.WebUri} {c.UserName}");
+                }
+            };
+
+            connectionManager.ConnectionsRemoved += (s, e) =>
+            {
+                foreach (var c in e.Connections)
+                {
+                    Console.WriteLine($"Removed {c.HostAddress.WebUri}");
+                }
+            };
+
             loginCache = new WindowsLoginCache();
             loginManager = new LoginManager(
                 loginCache,
@@ -45,7 +63,7 @@ namespace LoginConsole
 
                 foreach (var c in connectionManager.Connections)
                 {
-                    Console.WriteLine($"{index}. {c.HostAddress} {c.UserName}");
+                    Console.WriteLine($"{index}. {c.HostAddress.WebUri} {c.UserName}");
                 }
             }
             else
@@ -60,8 +78,8 @@ namespace LoginConsole
             Console.WriteLine(
                 "Commands:\n" +
                 "  login [connection #]\n" +
-                "  login [user] [pass] ([host])");
-            Console.WriteLine();
+                "  login [user] [pass] ([host])\n" +
+                "  logout [connection #]\n");
         }
 
         static async Task RunCommandLine()
@@ -79,6 +97,9 @@ namespace LoginConsole
                         {
                             case "login":
                                 await DoLogin(tokens.Skip(1).ToArray());
+                                break;
+                            case "logout":
+                                await DoLogout(tokens.Skip(1).ToArray());
                                 break;
                         }
                     }
@@ -119,7 +140,7 @@ namespace LoginConsole
                     new CredentialStore(host, loginCache));
 
                 user = await loginManager.Login(
-                    HostAddress.GitHubDotComHostAddress,
+                    host,
                     client,
                     tokens[0],
                     tokens[1]);
@@ -134,6 +155,39 @@ namespace LoginConsole
             }
 
             Console.WriteLine($"Logged in: {user.Email}");
+        }
+
+        static async Task DoLogout(string[] tokens)
+        {
+            if (tokens.Length == 1)
+            {
+                var index = int.Parse(tokens[0]);
+                var connection = connectionManager.Connections[index];
+
+                var client = new GitHubClient(
+                    new ProductHeaderValue("LoginConsole"),
+                    new CredentialStore(connection.HostAddress, loginCache));
+
+                await loginManager.Logout(connection.HostAddress, client);
+                await connectionManager.Remove(connection.HostAddress);
+            }
+            else
+            {
+                throw new Exception("Usage:\n  logout [connection #]");
+            }
+        }
+
+        static object IndexOf(IReadOnlyList<ConnectionDetails> connections, ConnectionDetails connection)
+        {
+            for (var i = 0; i < connections.Count; ++i)
+            {
+                if (connections[i] == connection)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
         }
     }
 }

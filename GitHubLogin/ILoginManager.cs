@@ -31,5 +31,11 @@ namespace GitHubLogin
         /// The login authorization failed.
         /// </exception>
         Task<User> LoginFromCache(HostAddress hostAddress, IGitHubClient client);
+
+        /// <summary>
+        /// Logs out of GitHub server.
+        /// </summary>
+        /// <param name="hostAddress">The address of the server.</param>
+        Task Logout(HostAddress hostAddress, IGitHubClient client);
     }
 }

@@ -56,14 +56,17 @@ namespace GitHubLogin
         }
 
         /// <inheritdoc/>
-        public async Task<ConnectionDetails> Add(HostAddress address, string userName)
+        public async Task<ConnectionDetails> Add(HostAddress hostAddress, string userName)
         {
-            if (Exists(address))
+            Guard.ArgumentNotNull(hostAddress, nameof(hostAddress));
+            Guard.ArgumentNotNullOrWhiteSpace(userName, nameof(userName));
+
+            if (Exists(hostAddress))
             {
-                throw new ArgumentException($"A connection with the host address '{address}' already exists.");
+                throw new ArgumentException($"A connection with the host address '{hostAddress}' already exists.");
             }
 
-            var connection = new ConnectionDetails(address, userName);
+            var connection = new ConnectionDetails(hostAddress, userName);
 
             inner.Add(connection);
 
@@ -77,9 +80,11 @@ namespace GitHubLogin
         }
 
         /// <inheritdoc/>
-        public async Task<bool> Remove(HostAddress address)
+        public async Task<bool> Remove(HostAddress hostAddress)
         {
-            var connection = Find(address);
+            Guard.ArgumentNotNull(hostAddress, nameof(hostAddress));
+
+            var connection = Find(hostAddress);
 
             if (connection != null)
             {
@@ -97,15 +102,19 @@ namespace GitHubLogin
         }
 
         /// <inheritdoc/>
-        public bool Exists(HostAddress address)
+        public bool Exists(HostAddress hostAddress)
         {
-            return Find(address) != null;
+            Guard.ArgumentNotNull(hostAddress, nameof(hostAddress));
+
+            return Find(hostAddress) != null;
         }
 
         /// <inheritdoc/>
-        public ConnectionDetails Find(HostAddress address)
+        public ConnectionDetails Find(HostAddress hostAddress)
         {
-            return inner.FirstOrDefault(x => x.HostAddress == address);
+            Guard.ArgumentNotNull(hostAddress, nameof(hostAddress));
+
+            return inner.FirstOrDefault(x => x.HostAddress == hostAddress);
         }
     }
 }

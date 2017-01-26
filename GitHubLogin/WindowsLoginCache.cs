@@ -11,6 +11,8 @@ namespace GitHubLogin
     {
         public Task<Tuple<string, string>> GetLogin(HostAddress hostAddress)
         {
+            Guard.ArgumentNotNull(hostAddress, nameof(hostAddress));
+
             var keyHost = GetKeyHost(hostAddress.CredentialCacheKeyHost);
 
             using (var credential = new Credential())
@@ -24,13 +26,33 @@ namespace GitHubLogin
             return Task.FromResult(Tuple.Create<string, string>(null, null));
         }
 
-        public Task SaveLogin(string user, string password, HostAddress hostAddress)
+        public Task SaveLogin(string userName, string password, HostAddress hostAddress)
         {
+            Guard.ArgumentNotNullOrWhiteSpace(userName, nameof(userName));
+            Guard.ArgumentNotNullOrWhiteSpace(password, nameof(password));
+            Guard.ArgumentNotNull(hostAddress, nameof(hostAddress));
+
             var keyHost = GetKeyHost(hostAddress.CredentialCacheKeyHost);
 
-            using (var credential = new Credential(user, password, keyHost))
+            using (var credential = new Credential(userName, password, keyHost))
             {
                 credential.Save();
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public Task EraseLogin(HostAddress hostAddress)
+        {
+            Guard.ArgumentNotNull(hostAddress, nameof(hostAddress));
+
+            var keyHost = GetKeyHost(hostAddress.CredentialCacheKeyHost);
+
+            using (var credential = new Credential())
+            {
+                credential.Target = keyHost;
+                credential.Type = CredentialType.Generic;
+                credential.Delete();
             }
 
             return Task.CompletedTask;

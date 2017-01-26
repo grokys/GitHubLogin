@@ -21,6 +21,8 @@ namespace GitHubLogin
 
         public async Task<Tuple<string, string>> GetLogin(HostAddress hostAddress)
         {
+            Guard.ArgumentNotNull(hostAddress, nameof(hostAddress));
+
             try
             {
                 var login = await cache.GetLoginAsync(hostAddress.CredentialCacheKeyHost);
@@ -48,6 +50,13 @@ namespace GitHubLogin
                 Log.Error(e, "Failed to save login for {HostAddress} to akavache cache", hostAddress);
                 return Task.CompletedTask;
             }
+        }
+
+        public Task EraseLogin(HostAddress hostAddress)
+        {
+            Guard.ArgumentNotNull(hostAddress, nameof(hostAddress));
+
+            throw new NotImplementedException();
         }
     }
 }

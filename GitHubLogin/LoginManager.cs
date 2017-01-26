@@ -108,7 +108,23 @@ namespace GitHubLogin
             return await client.User.Current().ConfigureAwait(false);
         }
 
-        public Task<User> LoginFromCache(HostAddress hostAddress, IGitHubClient client) => client.User.Current();
+        /// <inheritdoc/>
+        public Task<User> LoginFromCache(HostAddress hostAddress, IGitHubClient client)
+        {
+            Guard.ArgumentNotNull(hostAddress, nameof(hostAddress));
+            Guard.ArgumentNotNull(client, nameof(client));
+
+            return client.User.Current();
+        }
+
+        /// <inheritdoc/>
+        public async Task Logout(HostAddress hostAddress, IGitHubClient client)
+        {
+            Guard.ArgumentNotNull(hostAddress, nameof(hostAddress));
+            Guard.ArgumentNotNull(client, nameof(client));
+
+            await loginCache.EraseLogin(hostAddress);
+        }
 
         void EnsureNonNullAuthorization(ApplicationAuthorization auth)
         {
