@@ -4,6 +4,9 @@ using Octokit;
 
 namespace GitHubLogin
 {
+    /// <summary>
+    /// Provides services for logging into a GitHub server.
+    /// </summary>
     public class LoginManager : ILoginManager
     {
         readonly string[] scopes = { "user", "repo", "gist", "write:public_key" };
@@ -14,6 +17,15 @@ namespace GitHubLogin
         readonly string authorizationNote;
         readonly string fingerprint;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="LoginManager"/> class.
+        /// </summary>
+        /// <param name="loginCache">The cache in which to store login details.</param>
+        /// <param name="twoFactorChallengeHandler">The handler for 2FA challenges.</param>
+        /// <param name="clientId">The application's client API ID.</param>
+        /// <param name="clientSecret">The application's client API secret.</param>
+        /// <param name="authorizationNote">An note to store with the authorization.</param>
+        /// <param name="fingerprint">The machine fingerprint.</param>
         public LoginManager(
             ILoginCache loginCache,
             ITwoFactorChallengeHandler twoFactorChallengeHandler,
@@ -35,6 +47,7 @@ namespace GitHubLogin
             this.fingerprint = fingerprint;
         }
 
+        /// <inheritdoc/>
         public async Task<User> Login(
             HostAddress hostAddress,
             IGitHubClient client,
@@ -94,6 +107,8 @@ namespace GitHubLogin
             await loginCache.SaveLogin(userName, auth.Token, hostAddress).ConfigureAwait(false);
             return await client.User.Current().ConfigureAwait(false);
         }
+
+        public Task<User> LoginFromCache(HostAddress hostAddress, IGitHubClient client) => client.User.Current();
 
         void EnsureNonNullAuthorization(ApplicationAuthorization auth)
         {
