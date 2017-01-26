@@ -4,7 +4,7 @@ using Octokit;
 
 namespace GitHubLogin
 {
-    public class LoginManager
+    public class LoginManager : ILoginManager
     {
         readonly string[] scopes = { "user", "repo", "gist", "write:public_key" };
         readonly ILoginCache loginCache;

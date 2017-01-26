@@ -9,17 +9,22 @@ namespace LoginConsole
 {
     class Program
     {
+        // Services that would be registered with a DI container
+        static ILoginCache loginCache;
+        static ILoginManager loginManager;
+
         static void Main(string[] args)
         {
             BlobCache.ApplicationName = "LoginConsole";
 
-            var loginCache = new AkavacheLoginCache(BlobCache.Secure);
-            var loginManager = new LoginManager(
+            loginCache = new AkavacheLoginCache(BlobCache.Secure);
+            loginManager = new LoginManager(
                 loginCache,
                 new ConsoleTwoFactorChallengeHandler(),
                 args[0],
                 args[1],
                 $"LoginConsole on {Dns.GetHostName()}");
+
             var client = new GitHubClient(
                 new ProductHeaderValue("LoginConsole"),
                 new CredentialStore(HostAddress.GitHubDotComHostAddress, loginCache));
@@ -31,7 +36,7 @@ namespace LoginConsole
 
             try
             {
-                DoLogin(client, loginManager, userName, password).Wait();
+                DoLogin(client, userName, password).Wait();
             }
             catch (Exception e)
             {
@@ -41,7 +46,7 @@ namespace LoginConsole
             Console.ReadKey();
         }
 
-        static async Task DoLogin(IGitHubClient client, LoginManager loginManager, string userName, string password)
+        static async Task DoLogin(IGitHubClient client, string userName, string password)
         {
             var user = await loginManager.Login(
                 HostAddress.GitHubDotComHostAddress,

@@ -104,15 +104,16 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AkavacheLoginCache.cs" />
+    <Compile Include="ConnectionDetails.cs" />
     <Compile Include="ConnectionEventArgs.cs" />
     <Compile Include="CredentialStore.cs" />
     <Compile Include="Guard.cs" />
     <Compile Include="IConnectionCache.cs" />
     <Compile Include="ConnectionManager.cs" />
     <Compile Include="HostAddress.cs" />
-    <Compile Include="ConnectionDetails.cs" />
     <Compile Include="IConnectionManager.cs" />
     <Compile Include="ILoginCache.cs" />
+    <Compile Include="ILoginManager.cs" />
     <Compile Include="ITwoFactorChallengeHandler.cs" />
     <Compile Include="LoginManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
