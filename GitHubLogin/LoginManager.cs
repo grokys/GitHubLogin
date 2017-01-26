@@ -17,13 +17,15 @@ namespace GitHubLogin
         public LoginManager(
             ILoginCache loginCache,
             ITwoFactorChallengeHandler twoFactorChallengeHandler,
-            string clientId = null,
-            string clientSecret = null,
+            string clientId,
+            string clientSecret,
             string authorizationNote = null,
             string fingerprint = null)
         {
             Guard.ArgumentNotNull(loginCache, nameof(loginCache));
             Guard.ArgumentNotNull(twoFactorChallengeHandler, nameof(twoFactorChallengeHandler));
+            Guard.ArgumentNotNullOrWhiteSpace(clientId, nameof(clientId));
+            Guard.ArgumentNotNullOrWhiteSpace(clientSecret, nameof(clientSecret));
 
             this.loginCache = loginCache;
             this.twoFactorChallengeHandler = twoFactorChallengeHandler;
@@ -65,10 +67,17 @@ namespace GitHubLogin
                         clientId,
                         clientSecret,
                         newAuth).ConfigureAwait(false);
+                    EnsureNonNullAuthorization(auth);
                 }
                 catch (TwoFactorAuthorizationException e)
                 {
                     var challengeResult = await twoFactorChallengeHandler.HandleTwoFactorException(client, e);
+
+                    if (challengeResult == null)
+                    {
+                        throw new InvalidOperationException(
+                            "ITwoFactorChallengeHandler.HandleTwoFactorException returned null.");
+                    }
 
                     if (!challengeResult.ResendCodeRequested)
                     {
@@ -77,12 +86,24 @@ namespace GitHubLogin
                             clientSecret,
                             newAuth,
                             challengeResult.AuthenticationCode).ConfigureAwait(false);
+                        EnsureNonNullAuthorization(auth);
                     }
                 }
             } while (auth == null);
 
             await loginCache.SaveLogin(userName, auth.Token, hostAddress).ConfigureAwait(false);
             return await client.User.Current().ConfigureAwait(false);
+        }
+
+        void EnsureNonNullAuthorization(ApplicationAuthorization auth)
+        {
+            // If a mock IGitHubClient is not set up correctly, it can return null from
+            // IGutHubClient.Authorization.Create - this will cause an infinite loop in Login()
+            // so prevent that.
+            if (auth == null)
+            {
+                throw new InvalidOperationException("IGutHubClient.Authorization.Create returned null.");
+            }
         }
     }
 }
