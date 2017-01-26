@@ -30,6 +30,6 @@ namespace GitHubLogin
         /// <exception cref="AuthorizationException">
         /// The login authorization failed.
         /// </exception>
-        Task<User> LoginFromCache(HostAddress hostAddress, IGitHubClient client)
+        Task<User> LoginFromCache(HostAddress hostAddress, IGitHubClient client);
     }
 }
