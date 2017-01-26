@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Akavache;
@@ -10,6 +11,8 @@ namespace LoginConsole
     class Program
     {
         // Services that would be registered with a DI container
+        static IConnectionCache connectionCache;
+        static IConnectionManager connectionManager;
         static ILoginCache loginCache;
         static ILoginManager loginManager;
 
@@ -17,7 +20,11 @@ namespace LoginConsole
         {
             BlobCache.ApplicationName = "LoginConsole";
 
-            loginCache = new AkavacheLoginCache(BlobCache.Secure);
+            connectionCache = new JsonConnectionCache("connections.json");
+            connectionManager = new ConnectionManager(connectionCache);
+            connectionManager.Initialize().Wait();
+
+            loginCache = new WindowsLoginCache();
             loginManager = new LoginManager(
                 loginCache,
                 new ConsoleTwoFactorChallengeHandler(),
@@ -25,34 +32,106 @@ namespace LoginConsole
                 args[1],
                 $"LoginConsole on {Dns.GetHostName()}");
 
-            var client = new GitHubClient(
-                new ProductHeaderValue("LoginConsole"),
-                new CredentialStore(HostAddress.GitHubDotComHostAddress, loginCache));
-
-            Console.Write("Username: ");
-            var userName = Console.ReadLine();
-            Console.Write("Password: ");
-            var password = Console.ReadLine();
-
-            try
-            {
-                DoLogin(client, userName, password).Wait();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.InnerException.Message);
-            }
-
-            Console.ReadKey();
+            PrintConnections();
+            PrintHelp();
+            RunCommandLine().Wait();
         }
 
-        static async Task DoLogin(IGitHubClient client, string userName, string password)
+        static void PrintConnections()
         {
-            var user = await loginManager.Login(
-                HostAddress.GitHubDotComHostAddress,
-                client,
-                userName,
-                password);
+            if (connectionManager.Connections.Count > 0)
+            {
+                int index = 0;
+
+                foreach (var c in connectionManager.Connections)
+                {
+                    Console.WriteLine($"{index}. {c.HostAddress} {c.UserName}");
+                }
+            }
+            else
+            {
+                Console.WriteLine("No connections configured.");
+            }
+        }
+
+        static void PrintHelp()
+        {
+            Console.WriteLine();
+            Console.WriteLine(
+                "Commands:\n" +
+                "  login [connection #]\n" +
+                "  login [user] [pass] ([host])");
+            Console.WriteLine();
+        }
+
+        static async Task RunCommandLine()
+        {
+            for (;;)
+            {
+                try
+                {
+                    var line = Console.ReadLine();
+                    var tokens = line.Split(' ');
+
+                    if (tokens.Length > 0)
+                    {
+                        switch (tokens[0])
+                        {
+                            case "login":
+                                await DoLogin(tokens.Skip(1).ToArray());
+                                break;
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                }
+            }
+        }
+
+        static async Task DoLogin(string[] tokens)
+        {
+            User user;
+
+            if (tokens.Length == 1)
+            {
+                var index = int.Parse(tokens[0]);
+                var connection = connectionManager.Connections[index];
+
+                var client = new GitHubClient(
+                    new ProductHeaderValue("LoginConsole"),
+                    new CredentialStore(connection.HostAddress, loginCache));
+
+                user = await loginManager.LoginFromCache(HostAddress.GitHubDotComHostAddress, client);
+            }
+            else if (tokens.Length == 2 || tokens.Length == 3)
+            {
+                var host = tokens.Length == 3 ? HostAddress.Create(tokens[2]) : HostAddress.GitHubDotComHostAddress;
+
+                if (connectionManager.Exists(host))
+                {
+                    throw new Exception($"Connection to {host.WebUri} already exists. Log out first.");
+                }
+
+                var client = new GitHubClient(
+                    new ProductHeaderValue("LoginConsole"),
+                    new CredentialStore(host, loginCache));
+
+                user = await loginManager.Login(
+                    HostAddress.GitHubDotComHostAddress,
+                    client,
+                    tokens[0],
+                    tokens[1]);
+
+                var connection = await connectionManager.Add(host, tokens[0]);
+            }
+            else
+            {
+                throw new Exception("Usage:\n" +
+                    "  login [connection #]\n" +
+                    "  login [user] [pass] ([host])");
+            }
 
             Console.WriteLine($"Logged in: {user.Email}");
         }
