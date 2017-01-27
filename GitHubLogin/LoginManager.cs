@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net;
 using System.Threading.Tasks;
 using Octokit;
 
@@ -102,6 +103,20 @@ namespace GitHubLogin
                         EnsureNonNullAuthorization(auth);
                     }
                 }
+                catch (ApiException e)
+                {
+                    // Some enterpise instances don't support OAUTH, so fall back to using the
+                    // supplied password - on intances that don't support OAUTH the user should
+                    // be using a personal access token as the password.
+                    if (EnterpriseWorkaround(hostAddress, e))
+                    {
+                        auth = new ApplicationAuthorization(password);
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
             } while (auth == null);
 
             await loginCache.SaveLogin(userName, auth.Token, hostAddress).ConfigureAwait(false);
@@ -135,6 +150,21 @@ namespace GitHubLogin
             {
                 throw new InvalidOperationException("IGutHubClient.Authorization.Create returned null.");
             }
+        }
+
+        bool EnterpriseWorkaround(HostAddress hostAddress, ApiException e)
+        {
+            // Older Enterprise hosts either don't have the API end-point to PUT an authorization, or they
+            // return 422 because they haven't white-listed our client ID. In that case, we just ignore
+            // the failure, using basic authentication (with username and password) instead of trying
+            // to get an authorization token.
+            // Since enterprise 2.1 and https://github.com/github/github/pull/36669 the API returns 403
+            // instead of 404 to signal that it's not allowed. In the name of backwards compatibility we 
+            // test for both 404 (NotFoundException) and 403 (ForbiddenException) here.
+            return !hostAddress.IsGitHubDotCom() &&
+                (e is NotFoundException ||
+                 e is ForbiddenException ||
+                 e.StatusCode == (HttpStatusCode)422);
         }
     }
 }

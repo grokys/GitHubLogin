@@ -29,7 +29,7 @@ namespace LoginConsole
             {
                 foreach (var c in e.Connections)
                 {
-                    var index = IndexOf(e.Connections, c);
+                    var index = IndexOf(connectionManager.Connections, c);
                     Console.WriteLine($"Added {index}. {c.HostAddress.WebUri} {c.UserName}");
                 }
             };
@@ -63,7 +63,7 @@ namespace LoginConsole
 
                 foreach (var c in connectionManager.Connections)
                 {
-                    Console.WriteLine($"{index}. {c.HostAddress.WebUri} {c.UserName}");
+                    Console.WriteLine($"{index++}. {c.HostAddress.WebUri} {c.UserName}");
                 }
             }
             else
@@ -122,7 +122,8 @@ namespace LoginConsole
 
                 var client = new GitHubClient(
                     new ProductHeaderValue("LoginConsole"),
-                    new CredentialStore(connection.HostAddress, loginCache));
+                    new CredentialStore(connection.HostAddress, loginCache),
+                    connection.HostAddress.WebUri);
 
                 user = await loginManager.LoginFromCache(HostAddress.GitHubDotComHostAddress, client);
             }
@@ -137,7 +138,8 @@ namespace LoginConsole
 
                 var client = new GitHubClient(
                     new ProductHeaderValue("LoginConsole"),
-                    new CredentialStore(host, loginCache));
+                    new CredentialStore(host, loginCache),
+                    host.WebUri);
 
                 user = await loginManager.Login(
                     host,
