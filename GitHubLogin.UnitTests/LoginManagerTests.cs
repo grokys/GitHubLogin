@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net;
 using System.Threading.Tasks;
 using NSubstitute;
 using Octokit;
@@ -9,83 +10,191 @@ namespace GitHubLogin.UnitTests
     public class LoginManagerTests
     {
         static readonly HostAddress host = HostAddress.GitHubDotComHostAddress;
+        static readonly HostAddress enterprise = HostAddress.Create("https://ghe.io");
 
-        [Fact]
-        public async Task Login_Token_Is_Saved_To_Cache()
+        public class TheLoginMethod
         {
-            var client = Substitute.For<IGitHubClient>();
-            client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>())
-                .Returns(new ApplicationAuthorization("123abc"));
+            [Fact]
+            public async Task LoginTokenIsSavedToCache()
+            {
+                var client = Substitute.For<IGitHubClient>();
+                client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>())
+                    .Returns(new ApplicationAuthorization("123abc"));
 
-            var loginCache = Substitute.For<ILoginCache>();
-            var tfa = Substitute.For<ITwoFactorChallengeHandler>();
+                var loginCache = Substitute.For<ILoginCache>();
+                var tfa = Substitute.For<ITwoFactorChallengeHandler>();
 
-            var target = new LoginManager(loginCache, tfa, "id", "secret");
-            await target.Login(host, client, "foo", "bar");
+                var target = new LoginManager(loginCache, tfa, "id", "secret");
+                await target.Login(host, client, "foo", "bar");
 
-            await loginCache.Received().SaveLogin("foo", "123abc", host);
-        }
+                await loginCache.Received().SaveLogin("foo", "123abc", host);
+            }
 
-        [Fact]
-        public async Task Logged_In_User_Is_Returned()
-        {
-            var client = Substitute.For<IGitHubClient>();
-            var user = new User();
-            client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>())
-                .Returns(new ApplicationAuthorization("123abc"));
-            client.User.Current().Returns(user);
+            [Fact]
+            public async Task LoggedInUserIsReturned()
+            {
+                var client = Substitute.For<IGitHubClient>();
+                var user = new User();
+                client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>())
+                    .Returns(new ApplicationAuthorization("123abc"));
+                client.User.Current().Returns(user);
 
-            var loginCache = Substitute.For<ILoginCache>();
-            var tfa = Substitute.For<ITwoFactorChallengeHandler>();
+                var loginCache = Substitute.For<ILoginCache>();
+                var tfa = Substitute.For<ITwoFactorChallengeHandler>();
 
-            var target = new LoginManager(loginCache, tfa, "id", "secret");
-            var result = await target.Login(host, client, "foo", "bar");
+                var target = new LoginManager(loginCache, tfa, "id", "secret");
+                var result = await target.Login(host, client, "foo", "bar");
 
-            Assert.Same(user, result);
-        }
+                Assert.Same(user, result);
+            }
 
-        [Fact]
-        public async Task TwoFactor_Exception_Is_Passed_To_Handler()
-        {
-            var client = Substitute.For<IGitHubClient>();
-            var exception = new TwoFactorChallengeFailedException();
+            [Fact]
+            public async Task TwoFactorExceptionIsPassedToHandler()
+            {
+                var client = Substitute.For<IGitHubClient>();
+                var exception = new TwoFactorChallengeFailedException();
 
-            client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>())
-                .Returns<ApplicationAuthorization>(_ => { throw exception; });
-            client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>(), "def567")
-                .Returns(new ApplicationAuthorization("123abc"));
+                client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>())
+                    .Returns<ApplicationAuthorization>(_ => { throw exception; });
+                client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>(), "def567")
+                    .Returns(new ApplicationAuthorization("123abc"));
 
-            var loginCache = Substitute.For<ILoginCache>();
-            var tfa = Substitute.For<ITwoFactorChallengeHandler>();
-            tfa.HandleTwoFactorException(client, exception).Returns(new TwoFactorChallengeResult("def567"));
+                var loginCache = Substitute.For<ILoginCache>();
+                var tfa = Substitute.For<ITwoFactorChallengeHandler>();
+                tfa.HandleTwoFactorException(exception).Returns(new TwoFactorChallengeResult("def567"));
 
-            var target = new LoginManager(loginCache, tfa, "id", "secret");
-            await target.Login(host, client, "foo", "bar");
-        }
+                var target = new LoginManager(loginCache, tfa, "id", "secret");
+                await target.Login(host, client, "foo", "bar");
+            }
 
-        [Fact]
-        public async Task RequestResendCode_Results_In_Retrying_Login()
-        {
-            var client = Substitute.For<IGitHubClient>();
-            var exception = new TwoFactorChallengeFailedException();
-            var user = new User();
+            [Fact]
+            public async Task RequestResendCodeResultsInRetryingLogin()
+            {
+                var client = Substitute.For<IGitHubClient>();
+                var exception = new TwoFactorChallengeFailedException();
+                var user = new User();
 
-            client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>())
-                .Returns<ApplicationAuthorization>(_ => { throw exception; });
-            client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>(), "def567")
-                .Returns(new ApplicationAuthorization("456def"));
-            client.User.Current().Returns(user);
+                client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>())
+                    .Returns<ApplicationAuthorization>(_ => { throw exception; });
+                client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>(), "def567")
+                    .Returns(new ApplicationAuthorization("456def"));
+                client.User.Current().Returns(user);
 
-            var loginCache = Substitute.For<ILoginCache>();
-            var tfa = Substitute.For<ITwoFactorChallengeHandler>();
-            tfa.HandleTwoFactorException(client, exception).Returns(
-                TwoFactorChallengeResult.RequestResendCode,
-                new TwoFactorChallengeResult("def567"));
+                var loginCache = Substitute.For<ILoginCache>();
+                var tfa = Substitute.For<ITwoFactorChallengeHandler>();
+                tfa.HandleTwoFactorException(exception).Returns(
+                    TwoFactorChallengeResult.RequestResendCode,
+                    new TwoFactorChallengeResult("def567"));
 
-            var target = new LoginManager(loginCache, tfa, "id", "secret");
-            await target.Login(host, client, "foo", "bar");
+                var target = new LoginManager(loginCache, tfa, "id", "secret");
+                await target.Login(host, client, "foo", "bar");
 
-            await client.Authorization.Received(2).Create("id", "secret", Arg.Any<NewAuthorization>());
+                await client.Authorization.Received(2).Create("id", "secret", Arg.Any<NewAuthorization>());
+            }
+
+            [Fact]
+            public async Task UsesUsernameAndPasswordInsteadOfAuthorizationTokenWhenEnterpriseAndAPIReturns404()
+            {
+                var client = Substitute.For<IGitHubClient>();
+                var user = new User();
+
+                client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>())
+                    .Returns<ApplicationAuthorization>(_ =>
+                    {
+                        throw new NotFoundException("Not there", HttpStatusCode.NotFound);
+                    });
+                client.User.Current().Returns(user);
+
+                var loginCache = Substitute.For<ILoginCache>();
+                var tfa = Substitute.For<ITwoFactorChallengeHandler>();
+
+                var target = new LoginManager(loginCache, tfa, "id", "secret");
+                await target.Login(enterprise, client, "foo", "bar");
+
+                await loginCache.Received().SaveLogin("foo", "bar", enterprise);
+            }
+
+            [Fact]
+            public async Task ErasesLoginWhenUnauthorized()
+            {
+                var client = Substitute.For<IGitHubClient>();
+                var user = new User();
+
+                client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>())
+                    .Returns<ApplicationAuthorization>(_ => { throw new AuthorizationException(); });
+
+                var loginCache = Substitute.For<ILoginCache>();
+                var tfa = Substitute.For<ITwoFactorChallengeHandler>();
+
+                var target = new LoginManager(loginCache, tfa, "id", "secret");
+                await Assert.ThrowsAsync<AuthorizationException>(async () => await target.Login(enterprise, client, "foo", "bar"));
+
+                await loginCache.Received().EraseLogin(enterprise);
+            }
+
+            [Fact]
+            public async Task ErasesLoginWhenNonOctokitExceptionThrown()
+            {
+                var client = Substitute.For<IGitHubClient>();
+                var user = new User();
+
+                client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>())
+                    .Returns<ApplicationAuthorization>(_ => { throw new InvalidOperationException(); });
+
+                var loginCache = Substitute.For<ILoginCache>();
+                var tfa = Substitute.For<ITwoFactorChallengeHandler>();
+
+                var target = new LoginManager(loginCache, tfa, "id", "secret");
+                await Assert.ThrowsAsync<InvalidOperationException>(async () => await target.Login(host, client, "foo", "bar"));
+
+                await loginCache.Received().EraseLogin(host);
+            }
+
+            [Fact]
+            public async Task ErasesLoginWhenBad2FAEntered()
+            {
+                var client = Substitute.For<IGitHubClient>();
+                var user = new User();
+                var exception = new TwoFactorChallengeFailedException();
+
+                client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>())
+                    .Returns<ApplicationAuthorization>(_ => { throw exception; });
+                client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>(), "def567")
+                    .Returns<ApplicationAuthorization>(_ => { throw new TwoFactorChallengeFailedException(); });
+                client.User.Current().Returns(user);
+
+                var loginCache = Substitute.For<ILoginCache>();
+                var tfa = Substitute.For<ITwoFactorChallengeHandler>();
+                tfa.HandleTwoFactorException(exception).Returns(new TwoFactorChallengeResult("def567"));
+
+                var target = new LoginManager(loginCache, tfa, "id", "secret");
+                await Assert.ThrowsAsync<TwoFactorChallengeFailedException>(async () => await target.Login(host, client, "foo", "bar"));
+
+                await loginCache.Received().EraseLogin(host);
+            }
+
+            [Fact]
+            public async Task ErasesLoginWhenNonOctokitExceptionThrownIn2FA()
+            {
+                var client = Substitute.For<IGitHubClient>();
+                var user = new User();
+                var exception = new TwoFactorChallengeFailedException();
+
+                client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>())
+                    .Returns<ApplicationAuthorization>(_ => { throw exception; });
+                client.Authorization.Create("id", "secret", Arg.Any<NewAuthorization>(), "def567")
+                    .Returns<ApplicationAuthorization>(_ => { throw new InvalidOperationException(); });
+                client.User.Current().Returns(user);
+
+                var loginCache = Substitute.For<ILoginCache>();
+                var tfa = Substitute.For<ITwoFactorChallengeHandler>();
+                tfa.HandleTwoFactorException(exception).Returns(new TwoFactorChallengeResult("def567"));
+
+                var target = new LoginManager(loginCache, tfa, "id", "secret");
+                await Assert.ThrowsAsync<InvalidOperationException>(async () => await target.Login(host, client, "foo", "bar"));
+
+                await loginCache.Received().EraseLogin(host);
+            }
         }
     }
 }

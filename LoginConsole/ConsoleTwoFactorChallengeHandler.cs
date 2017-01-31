@@ -8,7 +8,6 @@ namespace LoginConsole
     class ConsoleTwoFactorChallengeHandler : ITwoFactorChallengeHandler
     {
         public Task<TwoFactorChallengeResult> HandleTwoFactorException(
-            IGitHubClient client,
             TwoFactorAuthorizationException exception)
         {
             Console.Write("Two Factor Code: ");

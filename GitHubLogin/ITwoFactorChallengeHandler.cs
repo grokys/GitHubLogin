@@ -6,8 +6,6 @@ namespace GitHubLogin
 {
     public interface ITwoFactorChallengeHandler
     {
-        Task<TwoFactorChallengeResult> HandleTwoFactorException(
-            IGitHubClient client,
-            TwoFactorAuthorizationException exception);
+        Task<TwoFactorChallengeResult> HandleTwoFactorException(TwoFactorAuthorizationException exception);
     }
 }
