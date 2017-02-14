@@ -197,8 +197,9 @@ namespace GitHubLogin
                     {
                         exception = e;
                     }
-                    catch (Exception)
+                    catch (Exception e)
                     {
+                        await twoFactorChallengeHandler.ChallengeFailed(e);
                         await loginCache.EraseLogin(hostAddress).ConfigureAwait(false);
                         throw;
                     }

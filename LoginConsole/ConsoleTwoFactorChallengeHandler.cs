@@ -22,5 +22,11 @@ namespace LoginConsole
                 return Task.FromResult(TwoFactorChallengeResult.RequestResendCode);
             }
         }
+
+        public Task ChallengeFailed(Exception e)
+        {
+            Console.WriteLine("Challenge failed: {0}", e.Message);
+            return Task.CompletedTask;
+        }
     }
 }

@@ -23,7 +23,7 @@ namespace GitHubLogin
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
-            return HostAddress.Equals(other.HostAddress) && string.Equals(UserName, other.UserName, StringComparison.InvariantCultureIgnoreCase);
+            return HostAddress.Equals(other.HostAddress) && string.Equals(UserName, other.UserName, StringComparison.OrdinalIgnoreCase);
         }
 
         public override bool Equals(object obj)
